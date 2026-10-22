@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ELM327 BLE 调试工具</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font: 14px system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 16px;
+      color: #222;
+      background: #fff;
+    }
+
+    h2 {
+      margin-bottom: 6px;
+    }
+
+    h3 {
+      font-size: 14px;
+      margin: 20px 0 10px;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      padding: 8px 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #222;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button:hover:not(:disabled) {
+      background: #eef4ff;
+      border-color: #6c91d9;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: white;
+    }
+
+    .primary:hover:not(:disabled) {
+      background: #1d4ed8;
+      color: white;
+    }
+
+    .commands {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .command-btn {
+      font-family: Consolas, monospace;
+    }
+
+    .command-btn.active {
+      border-color: #2563eb;
+      background: #eaf1ff;
+      color: #1d4ed8;
+    }
+
+    .command-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    #command {
+      flex: 1;
+      min-width: 0;
+      font: 15px Consolas, monospace;
+      padding: 10px 12px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      outline-color: #2563eb;
+    }
+
+    #log {
+      display: block;
+      width: 100%;
+      height: 320px;
+      resize: none;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 12px/1.65 Consolas, "Courier New", monospace;
+      color: #e5e7eb;
+      background: #151922;
+      border: 1px solid #343a46;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 18px 0 8px;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .section {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>ELM327 BLE 调试工具</h2>
+  <div class="muted">
+    点击命令按钮填入输入框，再手动点击发送。
+  </div>
+
+  <div class="section">
+    <div class="toolbar">
+      <button id="connect" class="primary">连接 BLE 设备</button>
+      <button id="disconnect" disabled>断开连接</button>
+    </div>
+    <div id="status" class="status">未连接</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">AT 基础命令</div>
+    <div class="commands">
+      <button class="command-btn" data-command="ATI">ATI 版本信息</button>
+      <button class="command-btn" data-command="ATZ">ATZ 重启</button>
+      <button class="command-btn" data-command="ATE0">ATE0 关闭回显</button>
+      <button class="command-btn" data-command="ATE1">ATE1 开启回显</button>
+      <button class="command-btn" data-command="ATL0">ATL0 关闭换行</button>
+      <button class="command-btn" data-command="ATS0">ATS0 去除空格</button>
+      <button class="command-btn" data-command="ATH0">ATH0 关闭报文头</button>
+      <button class="command-btn" data-command="ATH1">ATH1 显示报文头</button>
+      <button class="command-btn" data-command="ATSP0">ATSP0 自动选协议</button>
+      <button class="command-btn" data-command="ATDP">ATDP 当前协议</button>
+      <button class="command-btn" data-command="ATDPN">ATDPN 协议编号</button>
+      <button class="command-btn" data-command="ATRV">ATRV 适配器电压</button>
+    </div>
+
+    <h3>OBD2 数据查询</h3>
+    <div class="commands">
+      <button class="command-btn" data-command="010C">010C 发动机转速</button>
+      <button class="command-btn" data-command="010D">010D 车速</button>
+      <button class="command-btn" data-command="0105">0105 冷却液温度</button>
+      <button class="command-btn" data-command="010F">010F 进气温度</button>
+      <button class="command-btn" data-command="0111">0111 节气门开度</button>
+      <button class="command-btn" data-command="012F">012F 燃油液位</button>
+      <button class="command-btn" data-command="03">03 读取故障码</button>
+      <button class="command-btn" data-command="07">07 待定故障码</button>
+      <button class="command-btn" data-command="0A">0A 永久故障码</button>
+    </div>
+
+    <h3>手动发送</h3>
+    <div class="command-row">
+      <input id="command"
+             type="text"
+             value="ATI"
+             placeholder="输入 ELM327 命令，例如 ATI"
+             autocomplete="off">
+      <button id="send" class="primary" disabled>发送</button>
+    </div>
+    <div class="muted" style="margin-top: 8px">
+      发送时自动追加回车符 CR（0D）；选择命令按钮不会发送。
+    </div>
+  </div>
+
+  <div class="log-header">
+    <strong>通信日志</strong>
+    <div class="toolbar">
+      <button id="clearLog">清空日志</button>
+    </div>
+  </div>
+
+  <textarea id="log" readonly spellcheck="false"
+            aria-label="BLE 通信日志"></textarea>
+
+<script>
+const SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
+const WRITE_UUID   = '0000fff1-0000-1000-8000-00805f9b34fb';
+const NOTIFY_UUID  = '0000fff2-0000-1000-8000-00805f9b34fb';
+
+const connectButton = document.getElementById('connect');
+const disconnectButton = document.getElementById('disconnect');
+const sendButton = document.getElementById('send');
+const commandInput = document.getElementById('command');
+const logArea = document.getElementById('log');
+const statusArea = document.getElementById('status');
+
+let device = null;
+let writeChar = null;
+let notifyChar = null;
+let isSending = false;
+
+// 格式化日志：时间 + 类型 + 内容
+function log(type, message) {
+  const now = new Date().toLocaleTimeString('zh-CN', {
+    hour12: false
+  });
+
+  logArea.value += `[${now}] [${type}] ${message}\n`;
+
+  // 始终滚动到最新日志
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+function setStatus(message) {
+  statusArea.textContent = message;
+}
+
+function refreshButtons() {
+  const connected = Boolean(device?.gatt?.connected && writeChar);
+
+  sendButton.disabled = !connected || isSending;
+  disconnectButton.disabled = !device?.gatt?.connected;
+  connectButton.disabled = Boolean(device?.gatt?.connected);
+}
+
+// 命令按钮只填入输入框，不执行发送
+document.querySelectorAll('[data-command]').forEach(button => {
+  button.addEventListener('click', () => {
+    commandInput.value = button.dataset.command;
+
+    document.querySelectorAll('[data-command]').forEach(item => {
+      item.classList.remove('active');
+    });
+
+    button.classList.add('active');
+    commandInput.focus();
+  });
+});
+
+// Enter 只用于编辑输入框，不自动发送
+commandInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+  }
+});
+
+document.getElementById('clearLog').addEventListener('click', () => {
+  logArea.value = '';
+});
+
+function handleDisconnect() {
+  writeChar = null;
+  notifyChar = null;
+  setStatus('设备已断开');
+  log('SYS', 'BLE 连接已断开');
+  refreshButtons();
+}
+
+async function connectBLE() {
+  if (!navigator.bluetooth) {
+    log('ERR', '当前浏览器不支持 Web Bluetooth');
+    setStatus('浏览器不支持 Web Bluetooth');
+    return;
+  }
+
+  try {
+    connectButton.disabled = true;
+    setStatus('正在选择 BLE 设备...');
+    log('SYS', '正在请求 BLE 设备');
+
+    device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
+    });
+
+    log('SYS', '设备：' + (device.name || '未命名设备'));
+
+    device.removeEventListener(
+      'gattserverdisconnected',
+      handleDisconnect
+    );
+    device.addEventListener(
+      'gattserverdisconnected',
+      handleDisconnect
+    );
+
+    const server = await device.gatt.connect();
+    log('OK', 'GATT 连接成功');
+
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    log('GATT', 'Service：' + service.uuid);
+
+    const characteristics = await service.getCharacteristics();
+
+    // 遍历所有 Characteristic，输出属性和 Descriptor
+    for (const ch of characteristics) {
+      const p = ch.properties;
+
+      log('GATT', 'Characteristic：' + ch.uuid);
+      log('PROP',
+        `READ=${p.read}  WRITE=${p.write}  ` +
+        `WRITE_NO_RESPONSE=${p.writeWithoutResponse}  ` +
+        `NOTIFY=${p.notify}  INDICATE=${p.indicate}`
+      );
+
+      try {
+        const descriptors = await ch.getDescriptors();
+
+        for (const descriptor of descriptors) {
+          log('DESC', descriptor.uuid);
+        }
+
+        if (descriptors.length === 0) {
+          log('DESC', '没有 Descriptor');
+        }
+      } catch (error) {
+        // 某个 Characteristic 没有 Descriptor 不应中止连接
+        log('DESC', `跳过：${error.message}`);
+      }
+    }
+
+    // 优先选择 FFF1 作为写入特征值
+    writeChar = characteristics.find(ch =>
+      ch.uuid === WRITE_UUID &&
+      (ch.properties.write || ch.properties.writeWithoutResponse)
+    );
+
+    writeChar ??= characteristics.find(ch =>
+      ch.properties.write || ch.properties.writeWithoutResponse
+    );
+
+    // 优先选择 FFF1 作为通知特征值
+    notifyChar = characteristics.find(ch =>
+      ch.uuid === NOTIFY_UUID &&
+      (ch.properties.notify || ch.properties.indicate)
+    );
+
+    notifyChar ??= characteristics.find(ch =>
+      ch.properties.notify || ch.properties.indicate
+    );
+
+    if (notifyChar) {
+      notifyChar.addEventListener(
+        'characteristicvaluechanged',
+        event => {
+          const value = event.target.value;
+          const bytes = new Uint8Array(
+            value.buffer,
+            value.byteOffset,
+            value.byteLength
+          );
+
+          const hex = Array.from(bytes)
+            .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+            .join(' ');
+
+          const text = new TextDecoder().decode(bytes);
+
+          log('RX', 'HEX  ' + hex);
+          log('RX', 'TEXT ' + JSON.stringify(text));
+        }
+      );
+
+      await notifyChar.startNotifications();
+      log('OK', '已启用通知：' + notifyChar.uuid);
+    } else {
+      log('WARN', '没有找到支持 NOTIFY/INDICATE 的特征值');
+    }
+
+    if (!writeChar) {
+      throw new Error('没有找到支持写入的特征值');
+    }
+
+    log('OK', '写入特征值：' + writeChar.uuid);
+    setStatus('已连接：' + (device.name || 'OBD BLE'));
+    refreshButtons();
+
+  } catch (error) {
+    log('ERR', error.message);
+    setStatus('连接失败：' + error.message);
+
+    writeChar = null;
+    notifyChar = null;
+
+    if (device?.gatt?.connected) {
+      try {
+        device.gatt.disconnect();
+      } catch (_) {}
+    }
+
+    refreshButtons();
+  } finally {
+    connectButton.disabled = Boolean(device?.gatt?.connected);
+  }
+}
+
+async function sendCommand() {
+  if (!writeChar || !device?.gatt?.connected) {
+    log('ERR', '请先连接设备');
+    return;
+  }
+
+  const command = commandInput.value.trim();
+
+  if (!command) {
+    log('WARN', '请输入命令');
+    return;
+  }
+
+  if (isSending) {
+    log('WARN', '上一条命令还在发送，请稍候');
+    return;
+  }
+
+  // 发送时自动追加 CR
+  const bytes = new TextEncoder().encode(command + '\r');
+
+  isSending = true;
+  refreshButtons();
+
+  try {
+    log('TX', 'CMD  ' + command);
+    log('TX', 'HEX  ' + Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      .join(' '));
+
+    if (writeChar.properties.write &&
+        typeof writeChar.writeValueWithResponse === 'function') {
+      await writeChar.writeValueWithResponse(bytes);
+    } else if (
+      writeChar.properties.writeWithoutResponse &&
+      typeof writeChar.writeValueWithoutResponse === 'function'
+    ) {
+      await writeChar.writeValueWithoutResponse(bytes);
+    } else {
+      throw new Error('当前特征值不支持可用的写入方式');
+    }
+
+    log('OK', '写入操作完成，等待设备响应');
+  } catch (error) {
+    log('ERR', '发送失败：' + error.message);
+  } finally {
+    isSending = false;
+    refreshButtons();
+  }
+}
+
+connectButton.addEventListener('click', connectBLE);
+sendButton.addEventListener('click', sendCommand);
+
+disconnectButton.addEventListener('click', () => {
+  if (device?.gatt?.connected) {
+    device.gatt.disconnect();
+  } else {
+    handleDisconnect();
+  }
+});
+
+log('SYS', '工具已就绪');
+log('SYS', '请先连接 BLE 设备');
+refreshButtons();
+</script>
+</body>
+</html>
